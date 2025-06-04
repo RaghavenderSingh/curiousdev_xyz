@@ -1,14 +1,43 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState, useRef, useEffect } from "react"
-import { motion } from "framer-motion"
-import { Card } from "@/components/ui/card"
-import { Terminal } from "lucide-react"
+import { useState, useRef, useEffect } from "react";
+import { motion } from "framer-motion";
+import { Card } from "@/components/ui/card";
+import { Terminal } from "lucide-react";
+
+// Type definitions for the file system
+type FileContent = {
+  type: "file";
+  content: string;
+};
+
+type DirectoryContent = {
+  type: "directory";
+  url?: string;
+  description?: string;
+  tech?: string[];
+  children: Record<string, FileContent | DirectoryContent>;
+};
+
+type FileSystem = {
+  "/": DirectoryContent;
+};
+
+// Type guards
+const isDirectory = (
+  item: FileContent | DirectoryContent
+): item is DirectoryContent => {
+  return item.type === "directory";
+};
+
+const isFile = (item: FileContent | DirectoryContent): item is FileContent => {
+  return item.type === "file";
+};
 
 // Static GitHub data structure
-const fileSystem = {
+const fileSystem: FileSystem = {
   "/": {
     type: "directory",
     children: {
@@ -23,9 +52,14 @@ const fileSystem = {
             children: {
               "README.md": {
                 type: "file",
-                content: "# 3D Portfolio\n\nInteractive portfolio built with Three.js and React.",
+                content:
+                  "# 3D Portfolio\n\nInteractive portfolio built with Three.js and React.",
               },
-              "package.json": { type: "file", content: '{\n  "name": "portfolio-3d",\n  "version": "1.0.0"\n}' },
+              "package.json": {
+                type: "file",
+                content:
+                  '{\n  "name": "portfolio-3d",\n  "version": "1.0.0"\n}',
+              },
             },
           },
           "e-commerce-app": {
@@ -36,7 +70,8 @@ const fileSystem = {
             children: {
               "README.md": {
                 type: "file",
-                content: "# E-Commerce Platform\n\nModern shopping experience with Stripe integration.",
+                content:
+                  "# E-Commerce Platform\n\nModern shopping experience with Stripe integration.",
               },
               src: { type: "directory", children: {} },
             },
@@ -47,7 +82,11 @@ const fileSystem = {
             description: "Real-time chat application",
             tech: ["Node.js", "Socket.io", "React"],
             children: {
-              "README.md": { type: "file", content: "# Real-time Chat\n\nWebSocket-powered chat with file sharing." },
+              "README.md": {
+                type: "file",
+                content:
+                  "# Real-time Chat\n\nWebSocket-powered chat with file sharing.",
+              },
             },
           },
           "rust-blockchain": {
@@ -58,9 +97,13 @@ const fileSystem = {
             children: {
               "README.md": {
                 type: "file",
-                content: "# Rust Blockchain\n\nA simple blockchain implementation in Rust.",
+                content:
+                  "# Rust Blockchain\n\nA simple blockchain implementation in Rust.",
               },
-              "Cargo.toml": { type: "file", content: '[package]\nname = "blockchain"\nversion = "0.1.0"' },
+              "Cargo.toml": {
+                type: "file",
+                content: '[package]\nname = "blockchain"\nversion = "0.1.0"',
+              },
             },
           },
         },
@@ -77,213 +120,299 @@ const fileSystem = {
       },
     },
   },
-}
+};
 
 interface TerminalLine {
-  type: "command" | "output" | "error"
-  content: string
-  timestamp?: Date
+  type: "command" | "output" | "error";
+  content: string;
+  timestamp?: Date;
 }
 
 export function TerminalSection() {
-  const [currentPath, setCurrentPath] = useState("/")
+  const [currentPath, setCurrentPath] = useState("/");
   const [history, setHistory] = useState<TerminalLine[]>([
     { type: "output", content: "Welcome to CuriousOS Terminal v2.0.1" },
     { type: "output", content: "Type 'help' for available commands" },
     { type: "output", content: "" },
-  ])
-  const [currentCommand, setCurrentCommand] = useState("")
-  const [commandHistory, setCommandHistory] = useState<string[]>([])
-  const [historyIndex, setHistoryIndex] = useState(-1)
-  const terminalRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  ]);
+  const [currentCommand, setCurrentCommand] = useState("");
+  const [commandHistory, setCommandHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const terminalRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (terminalRef.current) {
-      terminalRef.current.scrollTop = terminalRef.current.scrollHeight
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
     }
-  }, [history])
+  }, [history]);
 
   const getCurrentDirectory = () => {
-    const parts = currentPath.split("/").filter(Boolean)
-    let current = fileSystem["/"]
+    const parts = currentPath.split("/").filter(Boolean);
+    let current: FileContent | DirectoryContent = fileSystem["/"];
 
     for (const part of parts) {
-      if (current.children && current.children[part]) {
-        current = current.children[part]
+      if (isDirectory(current) && current.children && current.children[part]) {
+        current = current.children[part] as FileContent | DirectoryContent;
       }
     }
-    return current
-  }
+    return current;
+  };
 
   const addToHistory = (line: TerminalLine) => {
-    setHistory((prev) => [...prev, line])
-  }
+    setHistory((prev) => [...prev, line]);
+  };
 
   const executeCommand = (command: string) => {
-    const trimmedCommand = command.trim()
-    if (!trimmedCommand) return
+    const trimmedCommand = command.trim();
+    if (!trimmedCommand) return;
 
     // Add command to history
-    addToHistory({ type: "command", content: `curious@dev:${currentPath}$ ${trimmedCommand}` })
-    setCommandHistory((prev) => [...prev, trimmedCommand])
-    setHistoryIndex(-1)
+    addToHistory({
+      type: "command",
+      content: `curious@dev:${currentPath}$ ${trimmedCommand}`,
+    });
+    setCommandHistory((prev) => [...prev, trimmedCommand]);
+    setHistoryIndex(-1);
 
-    const [cmd, ...args] = trimmedCommand.split(" ")
+    const [cmd, ...args] = trimmedCommand.split(" ");
 
     switch (cmd.toLowerCase()) {
       case "help":
-        addToHistory({ type: "output", content: "Available commands:" })
-        addToHistory({ type: "output", content: "  ls          - list directory contents" })
-        addToHistory({ type: "output", content: "  cd <dir>    - change directory" })
-        addToHistory({ type: "output", content: "  pwd         - show current directory" })
-        addToHistory({ type: "output", content: "  cat <file>  - display file contents" })
-        addToHistory({ type: "output", content: "  code .      - open current project" })
-        addToHistory({ type: "output", content: "  tree        - show directory tree" })
-        addToHistory({ type: "output", content: "  whoami      - display user info" })
-        addToHistory({ type: "output", content: "  clear       - clear terminal" })
-        break
+        addToHistory({ type: "output", content: "Available commands:" });
+        addToHistory({
+          type: "output",
+          content: "  ls          - list directory contents",
+        });
+        addToHistory({
+          type: "output",
+          content: "  cd <dir>    - change directory",
+        });
+        addToHistory({
+          type: "output",
+          content: "  pwd         - show current directory",
+        });
+        addToHistory({
+          type: "output",
+          content: "  cat <file>  - display file contents",
+        });
+        addToHistory({
+          type: "output",
+          content: "  code .      - open current project",
+        });
+        addToHistory({
+          type: "output",
+          content: "  tree        - show directory tree",
+        });
+        addToHistory({
+          type: "output",
+          content: "  whoami      - display user info",
+        });
+        addToHistory({
+          type: "output",
+          content: "  clear       - clear terminal",
+        });
+        break;
 
       case "ls":
-        const currentDir = getCurrentDirectory()
-        if (currentDir.children) {
+        const currentDir = getCurrentDirectory();
+        if (isDirectory(currentDir) && currentDir.children) {
           Object.entries(currentDir.children).forEach(([name, item]) => {
-            const icon = item.type === "directory" ? "📁" : "📄"
-            const tech = item.tech ? ` (${item.tech.join(", ")})` : ""
-            addToHistory({ type: "output", content: `${icon} ${name}${tech}` })
-          })
+            const icon = isDirectory(item) ? "📁" : "📄";
+            const tech =
+              isDirectory(item) && item.tech
+                ? ` (${item.tech.join(", ")})`
+                : "";
+            addToHistory({ type: "output", content: `${icon} ${name}${tech}` });
+          });
         } else {
-          addToHistory({ type: "output", content: "No items in current directory" })
+          addToHistory({
+            type: "output",
+            content: "No items in current directory",
+          });
         }
-        break
+        break;
 
       case "pwd":
-        addToHistory({ type: "output", content: currentPath })
-        break
+        addToHistory({ type: "output", content: currentPath });
+        break;
 
       case "cd":
         if (args.length === 0) {
-          setCurrentPath("/")
-          addToHistory({ type: "output", content: "Changed to root directory" })
+          setCurrentPath("/");
+          addToHistory({
+            type: "output",
+            content: "Changed to root directory",
+          });
         } else {
-          const target = args[0]
+          const target = args[0];
           if (target === "..") {
-            const parts = currentPath.split("/").filter(Boolean)
-            parts.pop()
-            setCurrentPath("/" + parts.join("/"))
+            const parts = currentPath.split("/").filter(Boolean);
+            parts.pop();
+            setCurrentPath("/" + parts.join("/"));
           } else {
-            const currentDir = getCurrentDirectory()
+            const currentDir = getCurrentDirectory();
             if (
+              isDirectory(currentDir) &&
               currentDir.children &&
               currentDir.children[target] &&
-              currentDir.children[target].type === "directory"
+              isDirectory(currentDir.children[target])
             ) {
-              const newPath = currentPath === "/" ? `/${target}` : `${currentPath}/${target}`
-              setCurrentPath(newPath)
-              addToHistory({ type: "output", content: `Changed directory to ${newPath}` })
+              const newPath =
+                currentPath === "/" ? `/${target}` : `${currentPath}/${target}`;
+              setCurrentPath(newPath);
+              addToHistory({
+                type: "output",
+                content: `Changed directory to ${newPath}`,
+              });
             } else {
-              addToHistory({ type: "error", content: `cd: ${target}: No such directory` })
+              addToHistory({
+                type: "error",
+                content: `cd: ${target}: No such directory`,
+              });
             }
           }
         }
-        break
+        break;
 
       case "cat":
         if (args.length === 0) {
-          addToHistory({ type: "error", content: "cat: missing file name" })
+          addToHistory({ type: "error", content: "cat: missing file name" });
         } else {
-          const fileName = args[0]
-          const currentDir = getCurrentDirectory()
-          if (currentDir.children && currentDir.children[fileName] && currentDir.children[fileName].type === "file") {
-            const content = currentDir.children[fileName].content || "File is empty"
+          const fileName = args[0];
+          const currentDir = getCurrentDirectory();
+          if (
+            isDirectory(currentDir) &&
+            currentDir.children &&
+            currentDir.children[fileName] &&
+            isFile(currentDir.children[fileName])
+          ) {
+            const content =
+              currentDir.children[fileName].content || "File is empty";
             content.split("\n").forEach((line) => {
-              addToHistory({ type: "output", content: line })
-            })
+              addToHistory({ type: "output", content: line });
+            });
           } else {
-            addToHistory({ type: "error", content: `cat: ${fileName}: No such file` })
+            addToHistory({
+              type: "error",
+              content: `cat: ${fileName}: No such file`,
+            });
           }
         }
-        break
+        break;
 
       case "code":
         if (args[0] === ".") {
-          const currentDir = getCurrentDirectory()
-          if (currentDir.url) {
-            addToHistory({ type: "output", content: `Opening project: ${currentDir.url}` })
-            addToHistory({ type: "output", content: "🚀 Launching in new tab..." })
+          const currentDir = getCurrentDirectory();
+          if (isDirectory(currentDir) && currentDir.url) {
+            addToHistory({
+              type: "output",
+              content: `Opening project: ${currentDir.url}`,
+            });
+            addToHistory({
+              type: "output",
+              content: "🚀 Launching in new tab...",
+            });
             setTimeout(() => {
-              window.open(currentDir.url, "_blank")
-            }, 1000)
+              window.open(currentDir.url, "_blank");
+            }, 1000);
           } else {
-            addToHistory({ type: "error", content: "No project URL found in current directory" })
+            addToHistory({
+              type: "error",
+              content: "No project URL found in current directory",
+            });
           }
         } else {
-          addToHistory({ type: "error", content: "Usage: code ." })
+          addToHistory({ type: "error", content: "Usage: code ." });
         }
-        break
+        break;
 
       case "tree":
-        const showTree = (obj: any, prefix = "", isLast = true) => {
+        const showTree = (
+          obj: DirectoryContent,
+          prefix = "",
+          isLast = true
+        ) => {
           if (obj.children) {
-            Object.entries(obj.children).forEach(([name, item], index, array) => {
-              const isLastItem = index === array.length - 1
-              const icon = item.type === "directory" ? "📁" : "📄"
-              addToHistory({
-                type: "output",
-                content: `${prefix}${isLastItem ? "└── " : "├── "}${icon} ${name}`,
-              })
-              if (item.type === "directory" && item.children) {
-                showTree(item, prefix + (isLastItem ? "    " : "│   "), isLastItem)
+            Object.entries(obj.children).forEach(
+              ([name, item], index, array) => {
+                const isLastItem = index === array.length - 1;
+                const icon = isDirectory(item) ? "📁" : "📄";
+                addToHistory({
+                  type: "output",
+                  content: `${prefix}${
+                    isLastItem ? "└── " : "├── "
+                  }${icon} ${name}`,
+                });
+                if (isDirectory(item) && item.children) {
+                  showTree(
+                    item,
+                    prefix + (isLastItem ? "    " : "│   "),
+                    isLastItem
+                  );
+                }
               }
-            })
+            );
           }
-        }
-        addToHistory({ type: "output", content: "📁 /" })
-        showTree(fileSystem["/"])
-        break
+        };
+        addToHistory({ type: "output", content: "📁 /" });
+        showTree(fileSystem["/"]);
+        break;
 
       case "whoami":
-        addToHistory({ type: "output", content: "curious-developer" })
-        addToHistory({ type: "output", content: "Full-stack engineer & digital artist" })
-        addToHistory({ type: "output", content: "Passionate about modern web technologies" })
-        break
+        addToHistory({ type: "output", content: "curious-developer" });
+        addToHistory({
+          type: "output",
+          content: "Full-stack engineer & digital artist",
+        });
+        addToHistory({
+          type: "output",
+          content: "Passionate about modern web technologies",
+        });
+        break;
 
       case "clear":
-        setHistory([])
-        break
+        setHistory([]);
+        break;
 
       default:
-        addToHistory({ type: "error", content: `Command not found: ${cmd}. Type 'help' for available commands.` })
+        addToHistory({
+          type: "error",
+          content: `Command not found: ${cmd}. Type 'help' for available commands.`,
+        });
     }
 
-    addToHistory({ type: "output", content: "" })
-  }
+    addToHistory({ type: "output", content: "" });
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
-      executeCommand(currentCommand)
-      setCurrentCommand("")
+      executeCommand(currentCommand);
+      setCurrentCommand("");
     } else if (e.key === "ArrowUp") {
-      e.preventDefault()
+      e.preventDefault();
       if (commandHistory.length > 0) {
-        const newIndex = historyIndex === -1 ? commandHistory.length - 1 : Math.max(0, historyIndex - 1)
-        setHistoryIndex(newIndex)
-        setCurrentCommand(commandHistory[newIndex])
+        const newIndex =
+          historyIndex === -1
+            ? commandHistory.length - 1
+            : Math.max(0, historyIndex - 1);
+        setHistoryIndex(newIndex);
+        setCurrentCommand(commandHistory[newIndex]);
       }
     } else if (e.key === "ArrowDown") {
-      e.preventDefault()
+      e.preventDefault();
       if (historyIndex !== -1) {
-        const newIndex = historyIndex + 1
+        const newIndex = historyIndex + 1;
         if (newIndex >= commandHistory.length) {
-          setHistoryIndex(-1)
-          setCurrentCommand("")
+          setHistoryIndex(-1);
+          setCurrentCommand("");
         } else {
-          setHistoryIndex(newIndex)
-          setCurrentCommand(commandHistory[newIndex])
+          setHistoryIndex(newIndex);
+          setCurrentCommand(commandHistory[newIndex]);
         }
       }
     }
-  }
+  };
 
   return (
     <section className="py-24 px-6 bg-gradient-to-b from-[#0a0a0a] to-[#111111] relative">
@@ -343,7 +472,9 @@ export function TerminalSection() {
               </div>
               <div className="flex items-center gap-2 flex-1 justify-center">
                 <Terminal className="h-4 w-4 text-green-400" />
-                <span className="text-green-400 text-sm font-mono">curious-terminal</span>
+                <span className="text-green-400 text-sm font-mono">
+                  curious-terminal
+                </span>
               </div>
             </div>
 
@@ -365,8 +496,8 @@ export function TerminalSection() {
                     line.type === "command"
                       ? "text-green-300"
                       : line.type === "error"
-                        ? "text-red-400"
-                        : "text-green-500"
+                      ? "text-red-400"
+                      : "text-green-500"
                   }`}
                 >
                   {line.content}
@@ -397,18 +528,20 @@ export function TerminalSection() {
             {/* Terminal Footer with Quick Commands */}
             <div className="bg-gray-900 px-4 py-2 border-t border-green-500/30">
               <div className="flex flex-wrap gap-2 text-xs">
-                {["ls", "cd projects", "cat about.txt", "tree", "help"].map((cmd) => (
-                  <button
-                    key={cmd}
-                    onClick={() => {
-                      setCurrentCommand(cmd)
-                      inputRef.current?.focus()
-                    }}
-                    className="px-2 py-1 bg-green-500/20 text-green-400 rounded border border-green-500/30 hover:bg-green-500/30 transition-colors font-mono"
-                  >
-                    {cmd}
-                  </button>
-                ))}
+                {["ls", "cd projects", "cat about.txt", "tree", "help"].map(
+                  (cmd) => (
+                    <button
+                      key={cmd}
+                      onClick={() => {
+                        setCurrentCommand(cmd);
+                        inputRef.current?.focus();
+                      }}
+                      className="px-2 py-1 bg-green-500/20 text-green-400 rounded border border-green-500/30 hover:bg-green-500/30 transition-colors font-mono"
+                    >
+                      {cmd}
+                    </button>
+                  )
+                )}
               </div>
             </div>
           </Card>
@@ -423,9 +556,19 @@ export function TerminalSection() {
           className="mt-8 text-center"
         >
           <p className="text-gray-400 mb-4">
-            Try commands like <code className="text-green-400 bg-black/50 px-2 py-1 rounded">cd projects</code>,{" "}
-            <code className="text-green-400 bg-black/50 px-2 py-1 rounded">ls</code>, or{" "}
-            <code className="text-green-400 bg-black/50 px-2 py-1 rounded">code .</code> to explore!
+            Try commands like{" "}
+            <code className="text-green-400 bg-black/50 px-2 py-1 rounded">
+              cd projects
+            </code>
+            ,{" "}
+            <code className="text-green-400 bg-black/50 px-2 py-1 rounded">
+              ls
+            </code>
+            , or{" "}
+            <code className="text-green-400 bg-black/50 px-2 py-1 rounded">
+              code .
+            </code>{" "}
+            to explore!
           </p>
           <div className="flex flex-wrap justify-center gap-4 text-sm text-gray-500">
             <span>• Use ↑/↓ arrows for command history</span>
@@ -435,5 +578,5 @@ export function TerminalSection() {
         </motion.div>
       </div>
     </section>
-  )
+  );
 }
